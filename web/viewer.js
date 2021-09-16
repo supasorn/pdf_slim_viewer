@@ -49,7 +49,9 @@ const defaultOptions = {
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE
   },
   defaultUrl: {
-    value: "compressed.tracemonkey-pldi-09.pdf",
+    /*value: "../../../Zotero/storage/3BTLV3EI/Zhang et al. - 2021 - NeRFactor Neural Factorization of Shape and Refle.pdf",*/
+    value: "Zhang et al. - 2021 - NeRFactor Neural Factorization of Shape and Refle.pdf",
+    //value: "http://localhost:5000/paper/S79BH8QE",
     kind: OptionKind.VIEWER
   },
   defaultZoomValue: {
@@ -1310,7 +1312,8 @@ const PDFViewerApplication = {
       rotation: null,
       sidebarView: _ui_utils.SidebarView.UNKNOWN,
       scrollMode: _ui_utils.ScrollMode.UNKNOWN,
-      spreadMode: _ui_utils.SpreadMode.UNKNOWN
+      spreadMode: _ui_utils.SpreadMode.UNKNOWN,
+      boundary: [],
     }).catch(() => {
       return Object.create(null);
     });
@@ -1321,6 +1324,8 @@ const PDFViewerApplication = {
 
       Promise.all([_ui_utils.animationStarted, storedPromise, pageLayoutPromise, pageModePromise, openActionPromise]).then(async ([timeStamp, stored, pageLayout, pageMode, openAction]) => {
         const viewOnLoad = _app_options.AppOptions.get("viewOnLoad");
+        this.boundary = stored.boundary;
+        pdfViewer.findCrop();
 
         this._initializePdfHistory({
           fingerprint: pdfDocument.fingerprint,
@@ -1893,6 +1898,8 @@ const PDFViewerApplication = {
 
     eventBus._on("sidebarviewchanged", webViewerSidebarViewChanged);
 
+    eventBus._on("saveboundary", webViewerSaveBoundary);
+
     eventBus._on("pagemode", webViewerPageMode);
 
     eventBus._on("namedaction", webViewerNamedAction);
@@ -2185,9 +2192,9 @@ let validateFileURL;
         protocol
       } = new URL(file, window.location.href);
 
-      if (origin !== viewerOrigin && protocol !== "blob:") {
-        throw new Error("file origin does not match viewer's");
-      }
+      //if (origin !== viewerOrigin && protocol !== "blob:") {
+      //  throw new Error("file origin does not match viewer's");
+      //}
     } catch (ex) {
       PDFViewerApplication.l10n.get("loading_error").then(msg => {
         PDFViewerApplication._documentError(msg, {
@@ -2446,6 +2453,18 @@ function webViewerSidebarViewChanged(evt) {
 
   if (store && PDFViewerApplication.isInitialViewSet) {
     store.set("sidebarView", evt.view).catch(function () {});
+  }
+}
+
+function webViewerSaveBoundary(evt) {
+  console.log(evt);
+  const store = PDFViewerApplication.store;
+  if (store) {
+    //console.log(PDFViewerApplication);
+    //let currentDict = PDFViewerApplication.boundary;
+    //currentDict[PDFViewerApplication.baseUrl] = [1, 2];
+    store.set("boundary", evt).catch(function () {});
+
   }
 }
 
@@ -2831,6 +2850,7 @@ function webViewerKeyDown(evt) {
   const isViewerInPresentationMode = pdfViewer?.isInPresentationMode;
 
   if (cmd === 1 || cmd === 8 || cmd === 5 || cmd === 12) {
+    // console.log(evt.keyCode);
     switch (evt.keyCode) {
       case 70:
         if (!PDFViewerApplication.supportsIntegratedFind && !evt.shiftKey) {
@@ -2907,6 +2927,12 @@ function webViewerKeyDown(evt) {
           handled = true;
           ensureViewerFocused = true;
         }
+      case 82:
+        if (!isViewerInPresentationMode) {
+          PDFViewerApplication.pdfViewer._setScale("page-height", true);
+        }
+
+        handled = true;
 
         break;
     }
@@ -3189,7 +3215,7 @@ const MAX_AUTO_SCALE = 1.25;
 exports.MAX_AUTO_SCALE = MAX_AUTO_SCALE;
 const SCROLLBAR_PADDING = 40;
 exports.SCROLLBAR_PADDING = SCROLLBAR_PADDING;
-const VERTICAL_PADDING = 5;
+const VERTICAL_PADDING = 8;
 exports.VERTICAL_PADDING = VERTICAL_PADDING;
 const LOADINGBAR_END_OFFSET_VAR = "--loadingBar-end-offset";
 const PresentationModeState = {
@@ -9894,6 +9920,11 @@ class BaseViewer {
 
     this._resetView();
 
+    this.loading = 0;
+    this.bestTop = 10000;
+    this.bestBottom = 0;
+    this.smallestWidth = 10000;
+
     if (this.removePageBorders) {
       this.viewer.classList.add("removePageBorders");
     }
@@ -10090,6 +10121,128 @@ class BaseViewer {
     }
 
     return this._onePageRenderedCapability.promise;
+  }
+
+  renderingOffScreen(page, i) {    
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+
+    var viewport = page.getViewport({scale: 1});
+
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    var renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+
+    var renderTask = page.render(renderContext);
+    
+    function findBound(ctx) {
+      const w = ctx.canvas.width; 
+      const h = ctx.canvas.height; 
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+  
+      var left, right, top, bottom;
+      function innerloop(dim, it, axis, w) {
+        for (var j = 0; j < dim; j++) {
+          let id;
+          if (axis == 0) {
+            id = (j * w + it) * 4;
+          } else {
+            id = (it * w + j) * 4;
+          }
+          let mean = (data[id] + data[id+1] + data[id+2]) / 3.0;
+          if (mean < 200) {
+            return true;
+          }
+        }
+        return false;
+      }
+      
+      for (left = 0; left < w; left++) 
+        if (innerloop(h, left, 0, w))
+          break;
+      for (right = w-1; right >=0; right--) 
+        if (innerloop(h, right, 0, w)) 
+          break;
+      for (top = 0; top < h; top++) 
+        if (innerloop(w, top, 1, w))
+          break;
+      for (bottom = h-1; bottom >=0; bottom--) 
+        if (innerloop(w, bottom, 1, w)) 
+          break;
+      right++;
+      bottom++;
+
+      return [left, top, right, bottom];
+    }
+
+    
+    renderTask.promise.then(() => {
+      const pi = this._pages[i];
+      [pi.left, pi.top, pi.right, pi.bottom] = findBound(context);
+      if (pi.top < this.bestTop)
+        this.bestTop = pi.top;
+      if (pi.bottom > this.bestBottom)
+        this.bestBottom = pi.bottom;
+      if (pi.right - pi.left < this.smallestWidth)
+        this.smallestWidth = pi.right - pi.left;
+
+      
+      this.loading++;
+      if (this.loading == this._pages.length) {
+        var savelist = [];
+        for (let i = 0; i < this._pages.length; i++) {
+          const pi = this._pages[i];
+          let margin = this.smallestWidth * 0.013;
+
+          pi.left = (pi.left - margin) / viewport.width;
+          pi.right = (pi.right + margin) / viewport.width;
+          pi.top = (this.bestTop - margin) / viewport.height;
+          pi.bottom = (this.bestBottom + margin) / viewport.height;
+          
+          pi.bound_ready = 1;
+          savelist.push([pi.left, pi.right, pi.top, pi.bottom]);
+        }
+        
+        this._setScale("auto", true);
+        this._setScale("page-height", true);
+
+        this.eventBus.dispatch("saveboundary", savelist);
+      }
+    });
+  }
+
+  findBoundary(pdfDocument) {
+    for (let i = 0; i < pdfDocument.numPages; i++) { 
+      pdfDocument.getPage(i+1).then(page => { 
+        this.renderingOffScreen(page, i); 
+      });
+    }
+  }
+
+  findCrop() {
+    let b = PDFViewerApplication.boundary;
+    console.log("YAY", b);
+    console.log("YAY", PDFViewerApplication);
+    if (typeof b !== 'undefined' && b.length == this.pdfDocument.numPages) {
+      for (let i = 0; i < b.length; i++) { 
+        const pi = this._pages[i];
+        [pi.left, pi.right, pi.top, pi.bottom] = b[i];
+        pi.bound_ready = 1;
+      }
+      this._setScale("auto", true);
+      this._setScale("page-height", true);
+    } else {
+      for (let i = 0; i < this.pdfDocument.numPages; i++) { 
+        this.pdfDocument.getPage(i+1).then(page => { 
+          this.renderingOffScreen(page, i); 
+        });
+      }
+    }
   }
 
   setDocument(pdfDocument) {
@@ -10293,7 +10446,7 @@ class BaseViewer {
     this._firstPageCapability = (0, _pdfjsLib.createPromiseCapability)();
     this._onePageRenderedCapability = (0, _pdfjsLib.createPromiseCapability)();
     this._pagesCapability = (0, _pdfjsLib.createPromiseCapability)();
-    this._scrollMode = _ui_utils.ScrollMode.VERTICAL;
+    this._scrollMode = _ui_utils.ScrollMode.HORIZONTAL;
     this._spreadMode = _ui_utils.SpreadMode.NONE;
 
     if (this._onBeforeDraw) {
@@ -10403,9 +10556,9 @@ class BaseViewer {
       let hPadding = noPadding ? 0 : _ui_utils.SCROLLBAR_PADDING;
       let vPadding = noPadding ? 0 : _ui_utils.VERTICAL_PADDING;
 
-      if (!noPadding && this._isScrollModeHorizontal) {
+      /*if (!noPadding && this._isScrollModeHorizontal) {
         [hPadding, vPadding] = [vPadding, hPadding];
-      }
+      }*/
 
       const pageWidthScale = (this.container.clientWidth - hPadding) / currentPage.width * currentPage.scale / this._pageWidthScaleFactor;
       const pageHeightScale = (this.container.clientHeight - vPadding) / currentPage.height * currentPage.scale;
@@ -11231,7 +11384,7 @@ class AnnotationLayerBuilder {
     this._cancelled = false;
   }
 
-  render(viewport, intent = "display") {
+  render(viewport, ofx, ofy, intent = "display") {
     return Promise.all([this.pdfPage.getAnnotations({
       intent
     }), this._hasJSActionsPromise]).then(([annotations, hasJSActions = false]) => {
@@ -11243,10 +11396,14 @@ class AnnotationLayerBuilder {
         return;
       }
 
+      let vp = viewport.clone({
+        dontFlip: true,
+      });
+      vp.transform[5] = -ofy;
+      vp.transform[4] = -ofx;
+
       const parameters = {
-        viewport: viewport.clone({
-          dontFlip: true
-        }),
+        viewport: vp,
         div: this.div,
         annotations,
         page: this.pdfPage,
@@ -11284,7 +11441,7 @@ class AnnotationLayerBuilder {
       return;
     }
 
-    this.div.hidden = true;
+    //this.div.hidden = true;
   }
 
 }
@@ -11451,6 +11608,9 @@ class PDFPageView {
     this.rotation = 0;
     this.scale = options.scale || _ui_utils.DEFAULT_SCALE;
     this.viewport = defaultViewport;
+    this.old_width = 0;
+    this.old_height = 0;
+
     this.pdfPageRotate = defaultViewport.rotation;
     this._optionalContentConfigPromise = options.optionalContentConfigPromise || null;
     this.hasRestrictedScaling = false;
@@ -11489,6 +11649,13 @@ class PDFPageView {
       div.setAttribute("aria-label", msg);
     });
     this.div = div;
+
+    this.left = 0;
+    this.right = 0;
+    this.top = 0;
+    this.bottom = 0;
+    this.bound_ready = 0;
+
     container.appendChild(div);
   }
 
@@ -11500,6 +11667,8 @@ class PDFPageView {
       scale: this.scale * _ui_utils.CSS_UNITS,
       rotation: totalRotation
     });
+    this.crop();
+
     this.reset();
   }
 
@@ -11515,7 +11684,11 @@ class PDFPageView {
     let error = null;
 
     try {
-      await this.annotationLayer.render(this.viewport, "display");
+      await this.annotationLayer.render(
+        this.viewport,
+        this.left * this.old_width,
+        this.top * this.old_height,
+        "display");
     } catch (ex) {
       error = ex;
     } finally {
@@ -11615,6 +11788,17 @@ class PDFPageView {
     div.appendChild(this.loadingIconDiv);
   }
 
+  crop() {
+    if (this.bound_ready) {
+      this.old_width = this.viewport.width;
+      this.old_height = this.viewport.height;
+      this.viewport.transform[4] = -this.left * this.viewport.width;
+      this.viewport.transform[5] = (1 - this.top) * this.viewport.height;
+      this.viewport.width *= this.right - this.left;
+      this.viewport.height *= this.bottom - this.top;
+    }
+  }
+
   update(scale, rotation, optionalContentConfigPromise = null) {
     this.scale = scale || this.scale;
 
@@ -11631,6 +11815,7 @@ class PDFPageView {
       scale: this.scale * _ui_utils.CSS_UNITS,
       rotation: totalRotation
     });
+    this.crop();
 
     if (this.svg) {
       this.cssTransform(this.svg, true);
@@ -13614,7 +13799,7 @@ class BasePreferences {
         "pdfBugEnabled": false,
         "renderer": "canvas",
         "renderInteractiveForms": true,
-        "sidebarViewOnLoad": -1,
+        "sidebarViewOnLoad": 0,
         "scrollModeOnLoad": -1,
         "spreadModeOnLoad": -1,
         "textLayerMode": 1,
@@ -13625,7 +13810,8 @@ class BasePreferences {
         "disableFontFace": false,
         "disableRange": false,
         "disableStream": false,
-        "enableXfa": false
+        "enableXfa": false,
+        "boundary": []
       }),
       writable: false,
       enumerable: true,

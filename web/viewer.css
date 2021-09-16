@@ -534,7 +534,7 @@
   --pdfViewer-padding-bottom: none;
   --page-margin: 1px auto -8px;
   --page-border: 9px solid transparent;
-  --spreadHorizontalWrapped-margin-LR: -3.5px;
+  --spreadHorizontalWrapped-margin-LR: -7px;
 }
 
 @media screen and (forced-colors: active) {
@@ -562,6 +562,7 @@
   position: relative;
   overflow: visible;
   border: var(--page-border);
+  border-top: 0px;
   background-clip: content-box;
   -o-border-image: url(images/shadow.png) 9 9 repeat;
      border-image: url(images/shadow.png) 9 9 repeat;
@@ -864,6 +865,10 @@ select {
   cursor: not-allowed;
 }
 
+#viewerContainer {
+  background-color: rgb(230, 230, 230);
+}
+
 #viewerContainer.pdfPresentationMode:-webkit-full-screen {
   top: 0;
   border-top: 2px solid rgba(0, 0, 0, 0);
@@ -918,7 +923,7 @@ select {
 
 #sidebarContainer {
   position: absolute;
-  top: 32px;
+  top: 0px;
   bottom: 0;
   width: var(--sidebar-width);
   visibility: hidden;
@@ -989,7 +994,7 @@ html[dir="rtl"] #sidebarContent {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   position: absolute;
-  top: 32px;
+  top: 0;
   right: 0;
   bottom: 0;
   left: 0;
@@ -1019,6 +1024,7 @@ html[dir="rtl"]
 }
 
 .toolbar {
+  display: none;
   position: relative;
   left: 0;
   right: 0;
