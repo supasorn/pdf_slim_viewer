@@ -390,7 +390,7 @@ var _viewer_compatibility = __webpack_require__(2);
 
 var _view_history = __webpack_require__(38);
 
-const DEFAULT_SCALE_DELTA = 1.1;
+const DEFAULT_SCALE_DELTA = 1.2;
 const DISABLE_AUTO_FETCH_LOADING_BAR_TIMEOUT = 5000;
 const FORCE_PAGES_LOADED_TIMEOUT = 10000;
 const WHEEL_ZOOM_DISABLED_TIMEOUT = 1000;
@@ -805,13 +805,15 @@ const PDFViewerApplication = {
       return;
     }
 
-    let newScale = this.pdfViewer.currentScale;
+    if (typeof ticks === 'undefined' || Number.isNaN(ticks))
+      ticks = 1;
+    let newScale = this.pdfViewer.currentScale * Math.pow(DEFAULT_SCALE_DELTA, ticks);
 
-    do {
-      newScale = (newScale * DEFAULT_SCALE_DELTA).toFixed(2);
-      newScale = Math.ceil(newScale * 10) / 10;
-      newScale = Math.min(_ui_utils.MAX_SCALE, newScale);
-    } while (--ticks > 0 && newScale < _ui_utils.MAX_SCALE);
+    //do {
+      //newScale = (newScale * DEFAULT_SCALE_DELTA).toFixed(2);
+      //newScale = Math.ceil(newScale * 10) / 10;
+      //newScale = Math.min(_ui_utils.MAX_SCALE, newScale);
+    //} while (--ticks > 0 && newScale < _ui_utils.MAX_SCALE);
 
     this.pdfViewer.currentScaleValue = newScale;
   },
@@ -821,13 +823,16 @@ const PDFViewerApplication = {
       return;
     }
 
-    let newScale = this.pdfViewer.currentScale;
+    if (typeof ticks === 'undefined' || Number.isNaN(ticks))
+      ticks = 1;
+    let newScale = this.pdfViewer.currentScale * Math.pow(DEFAULT_SCALE_DELTA, -ticks);
+    //let newScale = this.pdfViewer.currentScale;
 
-    do {
-      newScale = (newScale / DEFAULT_SCALE_DELTA).toFixed(2);
-      newScale = Math.floor(newScale * 10) / 10;
-      newScale = Math.max(_ui_utils.MIN_SCALE, newScale);
-    } while (--ticks > 0 && newScale > _ui_utils.MIN_SCALE);
+    //do {
+      //newScale = (newScale / DEFAULT_SCALE_DELTA).toFixed(2);
+      //newScale = Math.floor(newScale * 10) / 10;
+      //newScale = Math.max(_ui_utils.MIN_SCALE, newScale);
+    //} while (--ticks > 0 && newScale > _ui_utils.MIN_SCALE);
 
     this.pdfViewer.currentScaleValue = newScale;
   },
@@ -2796,7 +2801,8 @@ function webViewerWheel(evt) {
       }
     } else {
       const PIXELS_PER_LINE_SCALE = 30;
-      ticks = PDFViewerApplication.accumulateWheelTicks(delta / PIXELS_PER_LINE_SCALE);
+      ticks = delta / PIXELS_PER_LINE_SCALE;
+      //ticks = PDFViewerApplication.accumulateWheelTicks(delta / PIXELS_PER_LINE_SCALE);
     }
 
     if (ticks < 0) {
