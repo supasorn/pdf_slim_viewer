@@ -390,10 +390,10 @@ var _viewer_compatibility = __webpack_require__(2);
 
 var _view_history = __webpack_require__(38);
 
-const DEFAULT_SCALE_DELTA = 1.05;
+const DEFAULT_SCALE_DELTA = 1.2;
 const DISABLE_AUTO_FETCH_LOADING_BAR_TIMEOUT = 5000;
 const FORCE_PAGES_LOADED_TIMEOUT = 10000;
-const WHEEL_ZOOM_DISABLED_TIMEOUT = 1000;
+const WHEEL_ZOOM_DISABLED_TIMEOUT = 0;
 const ENABLE_PERMISSIONS_CLASS = "enablePermissions";
 const ViewOnLoad = {
   UNKNOWN: -1,
@@ -10216,6 +10216,7 @@ class BaseViewer {
         
         this._setScale("auto", true);
         this._setScale("page-height", true);
+        setTimeout(() => { this._setScale("page-height", true); console.log("invoke");}, 100);
 
         this.eventBus.dispatch("saveboundary", savelist);
       }
@@ -10232,8 +10233,6 @@ class BaseViewer {
 
   findCrop() {
     let b = PDFViewerApplication.boundary;
-    console.log("YAY", b);
-    console.log("YAY", PDFViewerApplication);
     if (typeof b !== 'undefined' && b.length == this.pdfDocument.numPages) {
       for (let i = 0; i < b.length; i++) { 
         const pi = this._pages[i];
