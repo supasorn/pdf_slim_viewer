@@ -3100,7 +3100,7 @@ function webViewerKeyDown(evt) {
         break;
 
       case 82:
-        PDFViewerApplication.rotatePages(90);
+        //PDFViewerApplication.rotatePages(90);
         break;
 
       case 115:
@@ -3135,7 +3135,7 @@ function webViewerKeyDown(evt) {
         break;
 
       case 82:
-        PDFViewerApplication.rotatePages(-90);
+        //PDFViewerApplication.rotatePages(-90);
         break;
     }
   }
