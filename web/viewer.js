@@ -10133,7 +10133,7 @@ class BaseViewer {
     var canvas = document.createElement('canvas');
     var context = canvas.getContext('2d');
 
-    var viewport = page.getViewport({scale: 1});
+    var viewport = page.getViewport({scale: 0.5});
 
     canvas.height = viewport.height;
     canvas.width = viewport.width;
@@ -10194,7 +10194,7 @@ class BaseViewer {
         this.bestTop = pi.top;
       if (pi.bottom > this.bestBottom)
         this.bestBottom = pi.bottom;
-      if (pi.right - pi.left < this.smallestWidth)
+      if (pi.right - pi.left < this.smallestWidth && pi.right - pi.left > 0.6 * canvas.width)
         this.smallestWidth = pi.right - pi.left;
 
       
@@ -10203,7 +10203,8 @@ class BaseViewer {
         var savelist = [];
         for (let i = 0; i < this._pages.length; i++) {
           const pi = this._pages[i];
-          let margin = this.smallestWidth * 0.013;
+          let margin = this.smallestWidth * 0.016;
+          //let margin = this.smallestWidth * 0.2;
 
           pi.left = (pi.left - margin) / viewport.width;
           pi.right = (pi.right + margin) / viewport.width;
@@ -10221,14 +10222,6 @@ class BaseViewer {
         this.eventBus.dispatch("saveboundary", savelist);
       }
     });
-  }
-
-  findBoundary(pdfDocument) {
-    for (let i = 0; i < pdfDocument.numPages; i++) { 
-      pdfDocument.getPage(i+1).then(page => { 
-        this.renderingOffScreen(page, i); 
-      });
-    }
   }
 
   findCrop() {
